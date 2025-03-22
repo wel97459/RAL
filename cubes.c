@@ -6,6 +6,37 @@
 #include <stdio.h>
 #include "SDL.h"
 #include "ral.h"
+
+#ifdef __SWITCH__
+    #include <switch.h>
+    #include <switch/services/hid.h>
+    #define FILE_LOC "romfs:/"
+#else
+    #define FILE_LOC "./"
+#endif
+
+#define SCREEN_SIZE 2
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
+#define SCREEN_FINALE_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
+#define SCREEN_FINALE_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
+
+#ifdef __SWITCH__
+    #define WINDOW_WIDTH 1280
+    #define WINDOW_HEIGHT 720
+#else
+    #define WINDOW_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
+    #define WINDOW_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
+#endif
+
+
+#ifdef __SWITCH__
+const SDL_Rect ScreenSpace = {(WINDOW_WIDTH/2)-(SCREEN_FINALE_WIDTH/2), (WINDOW_HEIGHT/2)-(SCREEN_FINALE_HEIGHT/2), SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
+#else
+const SDL_Rect ScreenSpace = {0, 0, SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
+#endif
+
+
 RAL_TEXTURE load_texture_from_tga(const char *filename) {
     FILE *fp = fopen(filename, "rb");
 
@@ -25,25 +56,29 @@ RAL_TEXTURE load_texture_from_tga(const char *filename) {
 }
 
 int main(int argument_count, char ** arguments) {
-    //Resolution significantly affects performance, you are probably doing it wrong
-    //if you are software rendering into 4K Ultra HD.
-    int width = 320;
-    int height = 240;
+
+    #ifdef __SWITCH__
+        // // Initialize the default gamepad (which reads handheld mode inputs as well as the first connected controller)
+        // padInitializeDefault(&game->pad);
+        // // Configure our supported input layout: a single player with standard controller styles
+        // padConfigureInput(1, HidNpadStyleSet_NpadStandard);
+        romfsInit();
+    #endif
 
     // Set up SDL2 stuff, including whats needed to display a buffer of pixels.
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window * window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, 0);
+    SDL_Window * window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, 0 /*SDL_RENDERER_PRESENTVSYNC*/);
-    SDL_Texture * texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    SDL_Texture * texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     RAL_CONTEXT context = {0};
     context.far = RAL_ONE * 20;
 	  context.near = RAL_ONE / 10;
 
-    uint32_t * pixels = malloc(width * height * sizeof(pixels[0]));
-    RAL_F * depth = malloc(width * height * sizeof(depth[0]));
-        uint8_t * objp = malloc(width * height * sizeof(objp[0]));
-    RAL_TEXTURE tex = load_texture_from_tga("texture.tga");
-    RAL_INIT(&context, pixels, depth, objp, width, height, RAL_I2F(60));
+    uint32_t * pixels = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(pixels[0]));
+    RAL_F * depth = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(depth[0]));
+    uint8_t * objp = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(objp[0]));
+    RAL_TEXTURE tex = load_texture_from_tga(FILE_LOC "texture.tga");
+    RAL_INIT(&context, pixels, depth, objp, SCREEN_WIDTH, SCREEN_HEIGHT, RAL_I2F(60));
 
 
     // For framerate counting.
@@ -59,6 +94,14 @@ int main(int argument_count, char ** arguments) {
     RAL_SET_CAMERA(&context, 0, 0, -2 * RAL_ONE, 0, 0, 0);
 
     while (1) {
+        #ifdef __SWITCH__
+            // Initialize the default gamepad (which reads handheld mode inputs as well as the first connected controller)
+            // padInitializeDefault(&game->pad);
+            // Configure our supported input layout: a single player with standard controller styles
+            // padConfigureInput(1, HidNpadStyleSet_NpadStandard);
+            romfsInit();
+        #endif
+
         uint64_t time_stamp = SDL_GetPerformanceCounter();
 
         SDL_Event event;
@@ -115,8 +158,8 @@ int main(int argument_count, char ** arguments) {
 
         // Display the pixel buffer on screen (using a streaming texture).
         SDL_RenderClear(renderer);
-        SDL_UpdateTexture(texture, NULL, pixels, width * sizeof(uint32_t));
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_UpdateTexture(texture, NULL, pixels, SCREEN_WIDTH * sizeof(uint32_t));
+        SDL_RenderCopy(renderer, texture, NULL, &ScreenSpace);
         SDL_RenderPresent(renderer);
 
         // Display the average framerate in the window title.
