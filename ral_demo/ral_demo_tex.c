@@ -40,7 +40,7 @@ int main(int argument_count, char ** arguments) {
     RAL_INIT(&context, pixels, depth, objp, width, height, RAL_I2F(60));
     
     //Thanks drummyfish for this texture
-    RAL_TEXTURE tex = load_texture_from_tga("texture.tga");
+    RAL_TEXTURE tex = load_texture_from_tga("../texture.tga");
 
     RAL_F player_x = 0;
     RAL_F player_z = -RAL_HALF * 5;

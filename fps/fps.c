@@ -25,18 +25,23 @@
 #endif
 
 #define SCREEN_SIZE 1
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 720
-#define SCREEN_FINALE_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
-#define SCREEN_FINALE_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
+
 
 #ifdef __SWITCH__
-    #define WINDOW_WIDTH 1280
-    #define WINDOW_HEIGHT 720
+    #define SCREEN_WIDTH (1280)
+    #define SCREEN_HEIGHT (720)
+    #define WINDOW_WIDTH (1280)
+    #define WINDOW_HEIGHT (720)
+    #define SCREEN_FINALE_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
+    #define SCREEN_FINALE_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
     const SDL_Rect ScreenSpace = {(WINDOW_WIDTH/2)-(SCREEN_FINALE_WIDTH/2), (WINDOW_HEIGHT/2)-(SCREEN_FINALE_HEIGHT/2), SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
 #else
+    #define SCREEN_WIDTH (640)
+    #define SCREEN_HEIGHT (480)
     #define WINDOW_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
     #define WINDOW_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
+    #define SCREEN_FINALE_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
+    #define SCREEN_FINALE_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
     const SDL_Rect ScreenSpace = {0, 0, SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
 #endif
 
@@ -63,9 +68,10 @@ int main(int argument_count, char ** arguments) {
 	RAL_CONTEXT context = {0};
 	context.far = RAL_ONE * 100;
 	context.near = RAL_ONE / 10;
-    uint32_t * pixels = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(pixels[0]));
-    RAL_F * depth = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(depth[0]));
-    RAL_INIT(&context, pixels, depth, WINDOW_WIDTH, WINDOW_HEIGHT, RAL_I2F(90));
+    uint32_t * pixels = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(pixels[0]));
+    RAL_F * depth = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(depth[0]));
+    uint8_t * objp = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(objp[0]));
+    RAL_INIT(&context, pixels, depth, objp, SCREEN_WIDTH, SCREEN_HEIGHT, RAL_I2F(90));
     // Barebones .obj file loader.
     char * file_name = FILE_LOC "moai.obj";
     if (argument_count == 2) file_name = arguments[1];
@@ -344,9 +350,13 @@ int main(int argument_count, char ** arguments) {
         // Display the pixel buffer on the screen.
         SDL_Delay(1);
         SDL_RenderClear(renderer);
-        SDL_UpdateTexture(texture, NULL, pixels, WINDOW_WIDTH * sizeof(uint32_t));
+        SDL_UpdateTexture(texture, NULL, pixels, SCREEN_WIDTH * sizeof(uint32_t));
         SDL_RenderCopy(renderer, texture, NULL, &ScreenSpace);
         SDL_RenderPresent(renderer);
 		//printf("frame\n");
     }
+    
+    free(pixels);
+    free(depth);
+    free(objp);
 }

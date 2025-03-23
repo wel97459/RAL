@@ -12,7 +12,7 @@
     #include <switch/services/hid.h>
     #define FILE_LOC "romfs:/"
 #else
-    #define FILE_LOC "./"
+    #define FILE_LOC "../"
 #endif
 
 #define SCREEN_SIZE 2
@@ -177,5 +177,4 @@ int main(int argument_count, char ** arguments) {
     free(pixels);
     free(depth);
     free(objp);
-
 }
