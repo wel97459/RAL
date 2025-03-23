@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "SDL.h"
-#include "ral.h"
+#include "../ral.h"
 
 RAL_TEXTURE load_texture_from_tga(const char *filename) {
     FILE *fp = fopen(filename, "rb");

@@ -5,7 +5,7 @@
 */
 #include <stdio.h>
 #include "SDL.h"
-#include "ral.h"
+#include "../ral.h"
 
 #ifdef __SWITCH__
     #include <switch.h>
@@ -24,18 +24,12 @@
 #ifdef __SWITCH__
     #define WINDOW_WIDTH 1280
     #define WINDOW_HEIGHT 720
+    const SDL_Rect ScreenSpace = {(WINDOW_WIDTH/2)-(SCREEN_FINALE_WIDTH/2), (WINDOW_HEIGHT/2)-(SCREEN_FINALE_HEIGHT/2), SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
 #else
     #define WINDOW_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
     #define WINDOW_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
+    const SDL_Rect ScreenSpace = {0, 0, SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
 #endif
-
-
-#ifdef __SWITCH__
-const SDL_Rect ScreenSpace = {(WINDOW_WIDTH/2)-(SCREEN_FINALE_WIDTH/2), (WINDOW_HEIGHT/2)-(SCREEN_FINALE_HEIGHT/2), SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
-#else
-const SDL_Rect ScreenSpace = {0, 0, SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
-#endif
-
 
 RAL_TEXTURE load_texture_from_tga(const char *filename) {
     FILE *fp = fopen(filename, "rb");
@@ -179,4 +173,9 @@ int main(int argument_count, char ** arguments) {
             have_enough_samples = 1;
         }
     }
+
+    free(pixels);
+    free(depth);
+    free(objp);
+
 }

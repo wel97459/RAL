@@ -2,8 +2,13 @@
 CMake*
 !CMakeLists.txt
 .vscode
-cubes*
-cubes.c
+cubes
+!cubes/
 ral_demo
+!ral_demo/
 Makefile
 fps
+!fps/
+*.nro
+*.elf
+*.nacp

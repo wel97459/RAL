@@ -14,25 +14,60 @@
 #include <time.h> // random number seed
 #include <stdio.h>
 #include "SDL.h"
-#include "ral.h"
+#include "../ral.h"
+
+#ifdef __SWITCH__
+    #include <switch.h>
+    #include <switch/services/hid.h>
+    #define FILE_LOC "romfs:/"
+#else
+    #define FILE_LOC "./"
+#endif
+
+#define SCREEN_SIZE 1
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
+#define SCREEN_FINALE_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
+#define SCREEN_FINALE_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
+
+#ifdef __SWITCH__
+    #define WINDOW_WIDTH 1280
+    #define WINDOW_HEIGHT 720
+    const SDL_Rect ScreenSpace = {(WINDOW_WIDTH/2)-(SCREEN_FINALE_WIDTH/2), (WINDOW_HEIGHT/2)-(SCREEN_FINALE_HEIGHT/2), SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
+#else
+    #define WINDOW_WIDTH (SCREEN_WIDTH * SCREEN_SIZE)
+    #define WINDOW_HEIGHT (SCREEN_HEIGHT * SCREEN_SIZE)
+    const SDL_Rect ScreenSpace = {0, 0, SCREEN_FINALE_WIDTH, SCREEN_FINALE_HEIGHT};
+#endif
+
+
 
 int main(int argument_count, char ** arguments) {
-    int width = 640;
-    int height = 480;
+    #ifdef __SWITCH__
+        PadState pad;
+        // Initialize the default gamepad (which reads handheld mode inputs as well as the first connected controller)
+        padInitializeDefault(&pad);
+        HidAnalogStickState analog_stick_l;
+        HidAnalogStickState analog_stick_r;
+        uint64_t kHeld;
+        // Configure our supported input layout: a single player with standard controller styles
+        padConfigureInput(1, HidNpadStyleSet_NpadStandard);
+        romfsInit();
+    #endif
 
     setbuf(stdout, NULL);
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window * window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, 0);
+    SDL_Window * window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
-    SDL_Texture * texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    SDL_Texture * texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WINDOW_WIDTH, WINDOW_HEIGHT);
 	RAL_CONTEXT context = {0};
 	context.far = RAL_ONE * 100;
 	context.near = RAL_ONE / 10;
-    uint32_t * pixels = malloc(width * height * sizeof(pixels[0]));
-    RAL_F * depth = malloc(width * height * sizeof(depth[0]));
-    RAL_INIT(&context, pixels, depth, width, height, RAL_I2F(90));
+    uint32_t * pixels = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(pixels[0]));
+    RAL_F * depth = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(depth[0]));
+    RAL_INIT(&context, pixels, depth, WINDOW_WIDTH, WINDOW_HEIGHT, RAL_I2F(90));
     // Barebones .obj file loader.
-    char * file_name = "moai.obj";
+    char * file_name = FILE_LOC "moai.obj";
     if (argument_count == 2) file_name = arguments[1];
     int vert_count = 0;
     RAL_F * triangles = NULL;
@@ -93,6 +128,7 @@ int main(int argument_count, char ** arguments) {
     RAL_F player_forward_speed = 0;
     RAL_F player_strafe_speed = 0;
     RAL_F mouse_sensitivity = RAL_ONE / 100;
+    RAL_F joy_sensitivity = RAL_ONE / (32767*2);
     int up = 0, down = 0, left = 0, right = 0, crouch = 0;
     SDL_SetRelativeMouseMode(1);
 
@@ -107,16 +143,38 @@ int main(int argument_count, char ** arguments) {
     }
 	printf("%i\n", RAL_D2F(3.1415926535));
     int heads_found = 0;
+    int running = 1;
     RAL_F head_radius = RAL_ONE / 2;
     RAL_F head_confetti_y = RAL_ONE * 2;
 
     SDL_SetWindowTitle(window, "Find The Golden Heads");
 
-    while (1) {
+    while (running) {
+        #ifdef __SWITCH__
+        padUpdate(&pad);
+        kHeld = padGetButtons(&pad);
+
+        // Read the sticks' position
+        analog_stick_l = padGetStickPos(&pad, 0);
+        analog_stick_r = padGetStickPos(&pad, 1);
+
+        if(kHeld & HidNpadButton_Plus)
+            running = 0;
+
+        crouch = kHeld & HidNpadButton_A;
+
+        player_yaw -= analog_stick_r.x * joy_sensitivity;
+        player_pitch -= analog_stick_r.y * joy_sensitivity;
+        if (player_pitch < -(RAL_ONE + (RAL_ONE / 3))) player_pitch = -(RAL_ONE + (RAL_ONE / 3));
+        if (player_pitch >  RAL_ONE + (RAL_ONE / 3)) player_pitch =  RAL_ONE + (RAL_ONE / 3);
+        player_forward_speed = analog_stick_l.y * joy_sensitivity;
+        player_strafe_speed = -analog_stick_l.x * joy_sensitivity;
+
+        #else
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
-                exit(0);
+                running = 0;
             } else if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
                 int sc = event.key.keysym.scancode;
                 if (sc == SDL_SCANCODE_UP || sc == SDL_SCANCODE_W) {
@@ -139,15 +197,19 @@ int main(int argument_count, char ** arguments) {
                 if (player_pitch >  RAL_ONE + (RAL_ONE / 3)) player_pitch =  RAL_ONE + (RAL_ONE / 3);
             }
         }
+        
+#endif
 
         RAL_CLEAR(&context);
         RAL_F t = SDL_GetTicks() * (RAL_ONE / 100);
 
         // A basic version of standard (mouse-look) FPS controls.
+#ifndef __SWITCH__
         if (up)    player_forward_speed =  RAL_ONE / 10;
         if (down)  player_forward_speed = -RAL_ONE / 10;
         if (left)  player_strafe_speed =  RAL_ONE / 10;
         if (right) player_strafe_speed = -RAL_ONE / 10;
+#endif
         player_height += RAL_FMUL(((crouch ? RAL_ONE / 2 : RAL_ONE) - player_height), (RAL_ONE / 10));
         player_x -= RAL_FMUL(RAL_FCOS(player_yaw - RAL_ONE - (RAL_ONE / 2)), player_forward_speed);
         player_z -= RAL_FMUL(RAL_FSIN(player_yaw - RAL_ONE - (RAL_ONE / 2)), player_forward_speed);
@@ -282,8 +344,8 @@ int main(int argument_count, char ** arguments) {
         // Display the pixel buffer on the screen.
         SDL_Delay(1);
         SDL_RenderClear(renderer);
-        SDL_UpdateTexture(texture, NULL, pixels, width * sizeof(uint32_t));
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_UpdateTexture(texture, NULL, pixels, WINDOW_WIDTH * sizeof(uint32_t));
+        SDL_RenderCopy(renderer, texture, NULL, &ScreenSpace);
         SDL_RenderPresent(renderer);
 		//printf("frame\n");
     }
